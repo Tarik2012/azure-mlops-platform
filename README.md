@@ -65,3 +65,21 @@ Example JSON for `/predict`:
   "petal_width": 0.2
 }
 ```
+
+## Run with Docker
+
+Build the image:
+
+```powershell
+docker build -t azure-mlops-platform-api .
+```
+
+Run the container:
+
+```powershell
+docker run -p 8000:8000 azure-mlops-platform-api
+```
+
+Open Swagger UI:
+
+`http://127.0.0.1:8000/docs`

@@ -2,11 +2,16 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-COPY src ./src
-COPY models ./models
+COPY requirements.txt ./
+RUN python -m pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY README.md ./README.md
+COPY models/ ./models/
 
 EXPOSE 8000
 
