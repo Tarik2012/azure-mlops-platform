@@ -83,3 +83,15 @@ docker run -p 8000:8000 azure-mlops-platform-api
 Open Swagger UI:
 
 `http://127.0.0.1:8000/docs`
+
+## Azure deployment practice
+
+The Azure deployment flow is prepared in `azure/deploy_container_app.ps1` and `azure/deployment_notes.md`, but it is not executed automatically.
+
+This practice creates temporary Azure resources for learning purposes and they should be deleted at the end of the exercise.
+
+Delete script:
+
+```powershell
+.\azure\delete_resources.ps1
+```
