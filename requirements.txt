@@ -1,0 +1,14 @@
+﻿azure-ai-ml
+azure-identity
+azure-storage-blob
+fastapi
+httpx
+joblib
+mlflow
+numpy
+pandas
+pydantic
+pytest
+python-dotenv
+scikit-learn
+uvicorn

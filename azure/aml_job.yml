@@ -1,0 +1,9 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: train-mlops-demo
+experiment_name: mlops-azure-fastapi-demo
+code: ../
+command: >-
+  python -m src.training.train
+environment: azureml:mlops-azure-fastapi-demo-env@latest
+compute: azureml:cpu-cluster
