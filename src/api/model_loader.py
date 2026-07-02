@@ -1,17 +1,27 @@
-"""Helpers for loading model artifacts."""
+"""Helpers for exposing model metadata to the API layer."""
 
-from pathlib import Path
-
-
-MODELS_DIR = Path("models")
-DEFAULT_MODEL_FILE = MODELS_DIR / "model.joblib"
+from src.config.settings import settings
 
 
-def load_model_path() -> Path:
-    """Return the default local model path."""
-    return DEFAULT_MODEL_FILE
+MODEL_NAME = "iris_random_forest"
+MODEL_VERSION = "0.1.0"
+
+
+def get_model_name() -> str:
+    """Return the API-facing model name."""
+    return MODEL_NAME
 
 
 def get_model_version() -> str:
-    """Return a placeholder model version."""
-    return "dev"
+    """Return the API-facing model version."""
+    return MODEL_VERSION
+
+
+def get_model_path() -> str:
+    """Return the configured local model artifact path."""
+    return str(settings.MODEL_PATH)
+
+
+def model_exists() -> bool:
+    """Return whether the trained model artifact is available."""
+    return settings.MODEL_PATH.exists()

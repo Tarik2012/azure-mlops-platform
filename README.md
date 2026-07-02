@@ -36,3 +36,32 @@ Run the full local MLOps flow, including data ingestion, profiling, validation, 
 ```bash
 python scripts/run_local_pipeline.py
 ```
+
+## Run API locally
+
+First ensure the trained model exists:
+
+```powershell
+.\venv\Scripts\python.exe scripts/run_local_pipeline.py
+```
+
+Start the API locally:
+
+```powershell
+.\venv\Scripts\python.exe -m uvicorn src.api.main:app --reload
+```
+
+Open Swagger UI:
+
+`http://127.0.0.1:8000/docs`
+
+Example JSON for `/predict`:
+
+```json
+{
+  "sepal_length": 5.1,
+  "sepal_width": 3.5,
+  "petal_length": 1.4,
+  "petal_width": 0.2
+}
+```

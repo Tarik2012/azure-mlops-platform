@@ -6,8 +6,8 @@ from src.api.routes import router
 
 
 app = FastAPI(
-    title="MLOps Azure FastAPI Demo",
-    description="API base para inferencia y health checks.",
+    title="Azure MLOps Platform - Inference API",
+    description="FastAPI service for Iris model health checks, metadata, and inference.",
     version="0.1.0",
 )
 
