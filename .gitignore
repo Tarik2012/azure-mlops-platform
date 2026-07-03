@@ -23,6 +23,13 @@ ENV/
 .env.*
 !.env.example
 
+# Local temporary and Terraform state
+.tmp/
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+
 # Packaging and build outputs
 build/
 dist/
