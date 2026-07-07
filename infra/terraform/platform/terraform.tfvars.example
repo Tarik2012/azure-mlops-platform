@@ -1,0 +1,7 @@
+location                       = "francecentral"
+environment                    = "dev"
+resource_group_name            = "rg-azure-mlops-platform-dev"
+acr_name                       = "acrazuremlopsplatform"
+managed_identity_name          = "id-azure-mlops-api-dev"
+log_analytics_workspace_name   = "law-ca-azure-mlops-api-dev"
+container_app_environment_name = "cae-azure-mlops-platform-dev"

@@ -95,3 +95,27 @@ Delete script:
 ```powershell
 .\azure\delete_resources.ps1
 ```
+
+## Azure CI/CD flow
+
+The repository now separates Azure deployment into three Terraform stacks:
+
+- `infra/terraform/bootstrap`
+- `infra/terraform/platform`
+- `infra/terraform/app`
+
+GitHub Actions is set up for:
+
+- CI on `push` and `pull_request`
+- manual Azure deployment with GitHub OIDC in `.github/workflows/deploy-azure.yml`
+
+The intended Azure flow is:
+
+1. Bootstrap the Terraform remote state backend
+2. Configure GitHub OIDC and repository variables
+3. Apply the platform stack
+4. Build and push the API image to ACR
+5. Apply the app stack
+6. Smoke test `/health`, `/model-info`, and `/predict`
+
+More detail is documented in [infra/terraform/README.md](</C:/Users/erroc/Projects/mlops-azure-fastapi-demo/infra/terraform/README.md>).
