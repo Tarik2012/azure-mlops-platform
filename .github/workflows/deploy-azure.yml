@@ -66,6 +66,9 @@ jobs:
       - name: Generate model artifact for deployment image
         run: python scripts/run_local_pipeline.py
 
+      - name: Create pytest temp directory
+        run: mkdir -p .tmp
+
       - name: Run test suite
         run: python -m pytest
 
