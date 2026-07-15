@@ -5,6 +5,6 @@ model: azureml:iris-classifier:1
 code_configuration:
   code: ../../src
   scoring_script: inference/score_azureml.py
-environment: azureml:sklearn-mlflow:1
-instance_type: Standard_DS3_v2
+environment: azureml:sklearn-mlflow:2
+instance_type: Standard_DS2_v2
 instance_count: 1

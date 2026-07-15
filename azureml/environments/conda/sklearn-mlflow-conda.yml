@@ -5,6 +5,7 @@ dependencies:
   - python=3.12
   - pip
   - pip:
+      - azureml-inference-server-http
       - azureml-mlflow
       - mlflow
       - numpy
