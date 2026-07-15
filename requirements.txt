@@ -11,4 +11,4 @@ pydantic
 pytest
 python-dotenv
 scikit-learn
-uvicorn
+uvicorn[standard]
