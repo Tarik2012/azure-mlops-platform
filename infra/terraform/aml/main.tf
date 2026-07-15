@@ -1,7 +1,8 @@
 locals {
   common_tags = {
     environment = var.environment
-    project     = "azure-mlops-platform"
+    project     = "azure-mlops"
+    owner       = "tarik2012"
     managed_by  = "terraform"
     workload    = "azure-machine-learning"
   }

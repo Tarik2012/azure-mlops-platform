@@ -13,19 +13,19 @@ variable "environment" {
 variable "resource_group_name" {
   description = "Name of the Resource Group for Azure ML."
   type        = string
-  default     = "rg-azure-mlops-aml-dev"
+  default     = "rg-azure-mlops-tarik2012-dev"
 }
 
 variable "workspace_name" {
   description = "Name of the Azure ML Workspace."
   type        = string
-  default     = "mlw-azure-mlops-dev"
+  default     = "mlw-azure-mlops-tarik2012-dev"
 }
 
 variable "storage_account_name" {
   description = "Globally unique Storage Account name used by Azure ML."
   type        = string
-  default     = "stazuremlopsamldev"
+  default     = "sttarik2012azuremlopsdev"
 
   validation {
     condition     = can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
@@ -36,19 +36,24 @@ variable "storage_account_name" {
 variable "key_vault_name" {
   description = "Globally unique Key Vault name used by Azure ML."
   type        = string
-  default     = "kv-azure-mlops-aml-dev"
+  default     = "kv-amlops-tarik2012-dev"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$", var.key_vault_name)) && !strcontains(var.key_vault_name, "--")
+    error_message = "Key Vault names must contain 3-24 alphanumeric characters or single hyphens, start with a letter, and end with an alphanumeric character."
+  }
 }
 
 variable "application_insights_name" {
   description = "Name of the Application Insights resource used by Azure ML."
   type        = string
-  default     = "appi-azure-mlops-aml-dev"
+  default     = "appi-azure-mlops-tarik2012-dev"
 }
 
 variable "container_registry_name" {
   description = "Globally unique Azure Container Registry name used by Azure ML."
   type        = string
-  default     = "acrazuremlopsamldev"
+  default     = "acrtarik2012azuremlopsdev"
 
   validation {
     condition     = can(regex("^[a-zA-Z0-9]{5,50}$", var.container_registry_name))
@@ -59,7 +64,7 @@ variable "container_registry_name" {
 variable "compute_cluster_name" {
   description = "Name of the Azure ML compute cluster."
   type        = string
-  default     = "cpu-cluster"
+  default     = "cpu-amlops-tarik2012-dev"
 }
 
 variable "compute_vm_size" {
