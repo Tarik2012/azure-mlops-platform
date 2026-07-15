@@ -1,0 +1,12 @@
+name: sklearn-mlflow
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - azureml-mlflow
+      - mlflow
+      - numpy
+      - pandas
+      - scikit-learn
