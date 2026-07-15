@@ -32,9 +32,10 @@ logging calls with the managed job run.
 
 ### Model Registry
 
-In a later phase, a selected artifact will become a versioned model asset.
-Registration separates evaluated training output from a model approved for
-deployment and preserves lineage back to its training run.
+A selected artifact can become a versioned model asset. Registration separates
+evaluated training output from a model approved for deployment and preserves
+lineage back to its training run. Phase 2 uses the registered
+`iris-classifier:1` model.
 
 ## How this differs from Container Apps
 
@@ -73,6 +74,77 @@ After infrastructure exists, these commands register the environment and submit
 the job. Both update Azure and are intentionally not part of Phase 1 validation:
 
 ```powershell
-az ml environment create --file azureml/environments/sklearn-mlflow.yml --resource-group rg-azure-mlops-aml-dev --workspace-name mlw-azure-mlops-dev
-az ml job create --file azureml/jobs/train_iris.yml --resource-group rg-azure-mlops-aml-dev --workspace-name mlw-azure-mlops-dev --stream
+az ml environment create --file azureml/environments/sklearn-mlflow.yml --resource-group rg-azure-mlops-tarik2012-dev --workspace-name mlw-azure-mlops-tarik2012-dev
+az ml job create --file azureml/jobs/train_iris.yml --resource-group rg-azure-mlops-tarik2012-dev --workspace-name mlw-azure-mlops-tarik2012-dev --stream
+```
+
+## Phase 2: managed online endpoint
+
+An Azure ML Managed Online Endpoint is a managed HTTPS interface for real-time
+model inference. Azure ML operates the serving infrastructure, authentication,
+routing, and monitoring behind the endpoint. The endpoint is the stable client
+address; it does not itself select a model implementation.
+
+A deployment is the runnable implementation behind an endpoint. It binds a
+registered model, scoring code, runtime environment, VM SKU, and replica count.
+An endpoint can contain multiple deployments so a new model can be introduced
+without changing the endpoint URI.
+
+`blue` is the conventional name of the initial deployment slot. It has no
+special Azure behavior by itself. A later `green` deployment could be added and
+traffic shifted gradually or switched after validation. The `--all-traffic`
+option below routes 100 percent of endpoint traffic to `blue` after deployment
+creation succeeds.
+
+The endpoint and deployment YAML files are Azure ML lifecycle assets. They do
+not replace or modify the Terraform-managed Resource Group, Workspace, Storage
+Account, Key Vault, Application Insights, Container Registry, or compute
+cluster. The existing FastAPI and Container Apps serving path also remains
+independent.
+
+### Scoring flow
+
+Azure ML calls `init()` once when an inference container starts. The scoring
+script reads `AZUREML_MODEL_DIR`, loads `model.joblib`, and retains the loaded
+model for subsequent requests. Azure ML then calls `run(raw_data)` for each
+request.
+
+The scoring script accepts a batch-style payload:
+
+```json
+{"data": [[5.1, 3.5, 1.4, 0.2]]}
+```
+
+It also accepts one record with named Iris features:
+
+```json
+{
+  "sepal_length": 5.1,
+  "sepal_width": 3.5,
+  "petal_length": 1.4,
+  "petal_width": 0.2
+}
+```
+
+A successful response has JSON-serializable predictions:
+
+```json
+{"predictions": [0]}
+```
+
+Malformed JSON, missing features, invalid record shapes, a missing model
+artifact, and prediction failures produce explicit errors rather than silently
+returning an invalid result.
+
+### Manual creation commands
+
+These commands create billable Azure resources. Run them manually only after
+reviewing the YAML files, confirming the registered model and environment, and
+authenticating to the intended subscription. They are documented here but are
+not executed as part of local validation.
+
+```powershell
+az ml online-endpoint create --file azureml/endpoints/iris_endpoint.yml --resource-group rg-azure-mlops-tarik2012-dev --workspace-name mlw-azure-mlops-tarik2012-dev
+
+az ml online-deployment create --file azureml/endpoints/iris_deployment.yml --resource-group rg-azure-mlops-tarik2012-dev --workspace-name mlw-azure-mlops-tarik2012-dev --all-traffic
 ```
