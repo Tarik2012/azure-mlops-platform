@@ -29,9 +29,34 @@ def init() -> None:
     if not model_dir:
         raise RuntimeError("AZUREML_MODEL_DIR is not set")
 
-    model_path = Path(model_dir) / MODEL_FILENAME
-    if not model_path.is_file():
-        raise FileNotFoundError(f"Model artifact not found: {model_path}")
+    model_root = Path(model_dir)
+    model_path = next(
+        (
+            candidate
+            for candidate in (
+                model_root / MODEL_FILENAME,
+                model_root / "model_output" / MODEL_FILENAME,
+            )
+            if candidate.is_file()
+        ),
+        None,
+    )
+
+    if model_path is None:
+        model_path = next(
+            (
+                candidate
+                for candidate in model_root.rglob(MODEL_FILENAME)
+                if candidate.is_file()
+            ),
+            None,
+        )
+
+    if model_path is None:
+        raise FileNotFoundError(
+            f"Model artifact '{MODEL_FILENAME}' not found under searched root: "
+            f"{model_root}"
+        )
 
     try:
         _model = joblib.load(model_path)

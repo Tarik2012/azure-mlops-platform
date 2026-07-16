@@ -11,14 +11,18 @@ from sklearn.dummy import DummyClassifier
 from src.inference import score_azureml
 
 
-@pytest.fixture
-def initialized_score(tmp_path, monkeypatch):
-    model = DummyClassifier(strategy="constant", constant=0)
+def _write_dummy_model(model_path, constant=0) -> None:
+    model = DummyClassifier(strategy="constant", constant=constant)
     model.fit(
         [[5.1, 3.5, 1.4, 0.2], [6.7, 3.1, 4.7, 1.5]],
         [0, 1],
     )
-    joblib.dump(model, tmp_path / "model.joblib")
+    joblib.dump(model, model_path)
+
+
+@pytest.fixture
+def initialized_score(tmp_path, monkeypatch):
+    _write_dummy_model(tmp_path / "model.joblib")
     monkeypatch.setenv("AZUREML_MODEL_DIR", str(tmp_path))
 
     score_azureml.init()
@@ -51,6 +55,43 @@ def test_run_accepts_named_iris_record(initialized_score) -> None:
     )
 
     assert result == {"predictions": [0]}
+
+
+def test_init_loads_model_from_model_output(tmp_path, monkeypatch) -> None:
+    model_output = tmp_path / "model_output"
+    model_output.mkdir()
+    _write_dummy_model(model_output / "model.joblib", constant=1)
+    monkeypatch.setenv("AZUREML_MODEL_DIR", str(tmp_path))
+
+    score_azureml.init()
+
+    assert score_azureml.run({"data": [[5.1, 3.5, 1.4, 0.2]]}) == {
+        "predictions": [1]
+    }
+
+
+def test_init_recursively_finds_model(tmp_path, monkeypatch) -> None:
+    nested_dir = tmp_path / "artifacts" / "nested"
+    nested_dir.mkdir(parents=True)
+    _write_dummy_model(nested_dir / "model.joblib", constant=1)
+    monkeypatch.setenv("AZUREML_MODEL_DIR", str(tmp_path))
+
+    score_azureml.init()
+
+    assert score_azureml.run({"data": [[5.1, 3.5, 1.4, 0.2]]}) == {
+        "predictions": [1]
+    }
+
+
+def test_init_reports_searched_root_when_model_is_missing(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("AZUREML_MODEL_DIR", str(tmp_path))
+
+    with pytest.raises(FileNotFoundError, match="searched root") as exc_info:
+        score_azureml.init()
+
+    assert str(tmp_path) in str(exc_info.value)
 
 
 def test_run_rejects_missing_features(initialized_score) -> None:
