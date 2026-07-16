@@ -1,0 +1,6 @@
+$schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
+name: sklearn-mlflow
+version: 2
+description: Runtime for scikit-learn training and online inference with Azure ML and MLflow.
+image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04:latest
+conda_file: conda/sklearn-mlflow-conda.yml

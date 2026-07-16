@@ -1,0 +1,16 @@
+.git/
+.github/
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+.tmp/
+mlruns/
+models/
+**/.terraform/
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/terraform.tfvars
+federated-credential.json
+*.pyc

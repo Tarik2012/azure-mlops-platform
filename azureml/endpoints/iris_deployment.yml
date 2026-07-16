@@ -1,0 +1,10 @@
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+name: blue
+endpoint_name: ep-iris-classifier-dev
+model: azureml:iris-classifier:1
+code_configuration:
+  code: ../../src
+  scoring_script: inference/score_azureml.py
+environment: azureml:sklearn-mlflow:2
+instance_type: Standard_DS2_v2
+instance_count: 1
