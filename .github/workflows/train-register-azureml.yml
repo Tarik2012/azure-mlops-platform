@@ -1,0 +1,184 @@
+name: Train and Register Azure ML Model
+
+on:
+  workflow_dispatch:
+
+# OIDC login needs an ID token; checkout and actions only need read access.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: azureml-train-register
+  cancel-in-progress: false
+
+jobs:
+  train-register:
+    name: Provision, Train, and Register
+    runs-on: ubuntu-latest
+    environment: azure-dev
+    env:
+      PYTHON_VERSION: "3.12"
+      TF_IN_AUTOMATION: "true"
+      AZUREML_ENVIRONMENT: azureml:sklearn-mlflow:2
+      MODEL_NAME: iris-classifier
+
+    steps:
+      # Stage 1: Check out and validate the same code that Azure ML will run.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required GitHub variables
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          TFSTATE_RESOURCE_GROUP_NAME: ${{ vars.TFSTATE_RESOURCE_GROUP_NAME }}
+          TFSTATE_STORAGE_ACCOUNT_NAME: ${{ vars.TFSTATE_STORAGE_ACCOUNT_NAME }}
+          TFSTATE_CONTAINER_NAME: ${{ vars.TFSTATE_CONTAINER_NAME }}
+        run: |
+          required_vars=(
+            AZURE_CLIENT_ID
+            AZURE_TENANT_ID
+            AZURE_SUBSCRIPTION_ID
+            TFSTATE_RESOURCE_GROUP_NAME
+            TFSTATE_STORAGE_ACCOUNT_NAME
+            TFSTATE_CONTAINER_NAME
+          )
+
+          for name in "${required_vars[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required GitHub variable: $name"
+              exit 1
+            fi
+          done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Create pytest temp directory
+        run: mkdir -p .tmp
+
+      - name: Run test suite
+        run: python -m pytest
+
+      # Stage 2: Exchange GitHub's OIDC token for an Azure access token.
+      - name: Azure login with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure ML CLI extension if needed
+        shell: bash
+        run: |
+          if ! az extension show --name ml > /dev/null 2>&1; then
+            az extension add --name ml --yes
+          fi
+
+      # Stage 3: Reconcile the persistent Azure ML infrastructure with Terraform.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init Azure ML infrastructure
+        run: >
+          terraform -chdir=infra/terraform/aml init -input=false
+          -backend-config="resource_group_name=${{ vars.TFSTATE_RESOURCE_GROUP_NAME }}"
+          -backend-config="storage_account_name=${{ vars.TFSTATE_STORAGE_ACCOUNT_NAME }}"
+          -backend-config="container_name=${{ vars.TFSTATE_CONTAINER_NAME }}"
+          -backend-config="key=aml.tfstate"
+          -backend-config="use_azuread_auth=true"
+
+      - name: Terraform validate Azure ML infrastructure
+        run: terraform -chdir=infra/terraform/aml validate
+
+      - name: Terraform plan Azure ML infrastructure
+        run: terraform -chdir=infra/terraform/aml plan -input=false -out=tfplan
+
+      - name: Terraform apply Azure ML infrastructure
+        run: terraform -chdir=infra/terraform/aml apply -input=false -auto-approve tfplan
+
+      - name: Read Azure ML Terraform outputs
+        shell: bash
+        run: |
+          echo "AZUREML_RESOURCE_GROUP=$(terraform -chdir=infra/terraform/aml output -raw resource_group_name)" >> "$GITHUB_ENV"
+          echo "AZUREML_WORKSPACE=$(terraform -chdir=infra/terraform/aml output -raw workspace_name)" >> "$GITHUB_ENV"
+
+      # Stage 4: Create or reconcile the versioned runtime used by training.
+      - name: Create or update Azure ML environment
+        run: >
+          az ml environment create
+          --file azureml/environments/sklearn-mlflow.yml
+          --resource-group "$AZUREML_RESOURCE_GROUP"
+          --workspace-name "$AZUREML_WORKSPACE"
+
+      # Stage 5: Submit the training specification and capture its immutable identity.
+      - name: Submit Azure ML training job
+        id: submit_job
+        shell: bash
+        run: |
+          read -r JOB_NAME JOB_ID < <(
+            az ml job create \
+              --file azureml/jobs/train_iris.yml \
+              --set environment="$AZUREML_ENVIRONMENT" \
+              --resource-group "$AZUREML_RESOURCE_GROUP" \
+              --workspace-name "$AZUREML_WORKSPACE" \
+              --query "[name,id]" \
+              --output tsv
+          )
+
+          if [ -z "$JOB_NAME" ] || [ -z "$JOB_ID" ]; then
+            echo "Azure ML did not return both a job name and job ID."
+            exit 1
+          fi
+
+          echo "Submitted Azure ML job: $JOB_NAME"
+          echo "job_name=$JOB_NAME" >> "$GITHUB_OUTPUT"
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+
+      # Stage 6: Stream until the job ends and reject every non-success state.
+      - name: Wait for Azure ML training job
+        shell: bash
+        env:
+          JOB_NAME: ${{ steps.submit_job.outputs.job_name }}
+        run: |
+          az ml job stream \
+            --name "$JOB_NAME" \
+            --resource-group "$AZUREML_RESOURCE_GROUP" \
+            --workspace-name "$AZUREML_WORKSPACE"
+
+          JOB_STATUS=$(az ml job show \
+            --name "$JOB_NAME" \
+            --resource-group "$AZUREML_RESOURCE_GROUP" \
+            --workspace-name "$AZUREML_WORKSPACE" \
+            --query status \
+            --output tsv)
+
+          echo "Azure ML job status: $JOB_STATUS"
+          if [ "$JOB_STATUS" != "Completed" ]; then
+            echo "Training did not complete successfully."
+            exit 1
+          fi
+
+      # Stage 7: Register a new model version directly from the named job output.
+      - name: Register trained model
+        shell: bash
+        env:
+          JOB_NAME: ${{ steps.submit_job.outputs.job_name }}
+        run: |
+          az ml model create \
+            --name "$MODEL_NAME" \
+            --type custom_model \
+            --path "azureml://jobs/$JOB_NAME/outputs/model_output" \
+            --resource-group "$AZUREML_RESOURCE_GROUP" \
+            --workspace-name "$AZUREML_WORKSPACE"
