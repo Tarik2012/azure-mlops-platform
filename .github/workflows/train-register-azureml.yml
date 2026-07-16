@@ -122,43 +122,46 @@ jobs:
           --resource-group "$AZUREML_RESOURCE_GROUP"
           --workspace-name "$AZUREML_WORKSPACE"
 
-      # Stage 5: Submit the training specification and capture its immutable identity.
+      # Stage 5: Submit the training specification and capture the generated job name.
       - name: Submit Azure ML training job
-        id: submit_job
         shell: bash
         run: |
-          read -r JOB_NAME JOB_ID < <(
-            az ml job create \
-              --file azureml/jobs/train_iris.yml \
-              --set environment="$AZUREML_ENVIRONMENT" \
-              --resource-group "$AZUREML_RESOURCE_GROUP" \
-              --workspace-name "$AZUREML_WORKSPACE" \
-              --query "[name,id]" \
-              --output tsv
-          )
+          az ml job create \
+            --file azureml/jobs/train_iris.yml \
+            --set environment="$AZUREML_ENVIRONMENT" \
+            --resource-group "$AZUREML_RESOURCE_GROUP" \
+            --workspace-name "$AZUREML_WORKSPACE" \
+            --output json > azureml-job.json
 
-          if [ -z "$JOB_NAME" ] || [ -z "$JOB_ID" ]; then
-            echo "Azure ML did not return both a job name and job ID."
+          AZUREML_JOB_NAME=$(python -c 'import json; print(json.load(open("azureml-job.json", encoding="utf-8")).get("name", ""))')
+
+          if [ -z "$AZUREML_JOB_NAME" ]; then
+            echo "Azure ML did not return a job name."
             exit 1
           fi
 
-          echo "Submitted Azure ML job: $JOB_NAME"
-          echo "job_name=$JOB_NAME" >> "$GITHUB_OUTPUT"
-          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+          echo "Submitted Azure ML job: $AZUREML_JOB_NAME"
+          echo "AZUREML_JOB_NAME=$AZUREML_JOB_NAME" >> "$GITHUB_ENV"
+
+          JOB_STATUS=$(az ml job show \
+            --name "$AZUREML_JOB_NAME" \
+            --resource-group "$AZUREML_RESOURCE_GROUP" \
+            --workspace-name "$AZUREML_WORKSPACE" \
+            --query status \
+            --output tsv)
+          echo "Azure ML job status after submission: $JOB_STATUS"
 
       # Stage 6: Stream until the job ends and reject every non-success state.
       - name: Wait for Azure ML training job
         shell: bash
-        env:
-          JOB_NAME: ${{ steps.submit_job.outputs.job_name }}
         run: |
           az ml job stream \
-            --name "$JOB_NAME" \
+            --name "$AZUREML_JOB_NAME" \
             --resource-group "$AZUREML_RESOURCE_GROUP" \
             --workspace-name "$AZUREML_WORKSPACE"
 
           JOB_STATUS=$(az ml job show \
-            --name "$JOB_NAME" \
+            --name "$AZUREML_JOB_NAME" \
             --resource-group "$AZUREML_RESOURCE_GROUP" \
             --workspace-name "$AZUREML_WORKSPACE" \
             --query status \
@@ -173,12 +176,10 @@ jobs:
       # Stage 7: Register a new model version directly from the named job output.
       - name: Register trained model
         shell: bash
-        env:
-          JOB_NAME: ${{ steps.submit_job.outputs.job_name }}
         run: |
           az ml model create \
             --name "$MODEL_NAME" \
             --type custom_model \
-            --path "azureml://jobs/$JOB_NAME/outputs/model_output" \
+            --path "azureml://jobs/$AZUREML_JOB_NAME/outputs/model_output" \
             --resource-group "$AZUREML_RESOURCE_GROUP" \
             --workspace-name "$AZUREML_WORKSPACE"
