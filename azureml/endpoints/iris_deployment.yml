@@ -8,3 +8,4 @@ code_configuration:
 environment: azureml:sklearn-mlflow:2
 instance_type: Standard_DS2_v2
 instance_count: 1
+app_insights_enabled: true
