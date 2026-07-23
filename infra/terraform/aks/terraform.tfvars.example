@@ -1,0 +1,9 @@
+location                = "francecentral"
+environment             = "dev"
+resource_group_name     = "rg-azure-mlops-aks-dev"
+aks_cluster_name        = "aks-azure-mlops-dev"
+dns_prefix              = "aks-azure-mlops-dev"
+node_count              = 1
+node_vm_size            = "Standard_B2s"
+acr_name                = "acrtarik2012azuremlopsdev"
+acr_resource_group_name = "rg-azure-mlops-tarik2012-dev"
