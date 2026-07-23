@@ -76,3 +76,8 @@ data/processed/*.csv
 # Logs
 *.log
 logs/
+
+# Terraform local backend and plan files
+**/backend.hcl
+**/tfplan
+**/tfplan.*

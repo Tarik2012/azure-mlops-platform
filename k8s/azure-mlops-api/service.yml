@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-mlops-api
+  namespace: azure-mlops
+  labels:
+    app.kubernetes.io/name: azure-mlops-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: azure-mlops-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
